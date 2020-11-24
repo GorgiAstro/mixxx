@@ -28,6 +28,11 @@ if(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW)
 endif()
 
+# install(CODE) and install(SCRIPT) support generator expressions
+if(POLICY CMP0087)
+    cmake_policy(SET CMP0087 OLD)
+endif()
+
 #######################################################################
 # Compilers and toolchains
 
@@ -1085,16 +1090,75 @@ if (APPLE)
     )
   endif()
 else()
-    include(InstallRequiredSystemLibraries)
-    install(
-        FILES
-            ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
-        DESTINATION
-            "${MIXXX_INSTALL_BINDIR}"
-        COMPONENT
-            Libraries
-    )
+  include(InstallRequiredSystemLibraries)
+  install(
+    FILES
+        ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+    DESTINATION
+        "${MIXXX_INSTALL_BINDIR}"
+    COMPONENT
+        Libraries
+  )
 endif()
+
+option(WINDOWS_CODESIGN "Sign executables and libraries with digital certificate" OFF)
+mark_as_advanced(WINDOWS_CODESIGN)
+if(WINDOWS_CODESIGN)
+  set(WINDOWS_CODESIGN_CERTIFICATE_PATH "$ENV{WINDOWS_CODESIGN_CERTIFICATE_PATH}" CACHE STRING "Path to signtool certificate")
+  set(WINDOWS_CODESIGN_CERTIFICATE_PASSWORD "$ENV{WINDOWS_CODESIGN_CERTIFICATE_PASSWORD}" CACHE STRING "Password of signtool certificate")
+  if("${WINDOWS_CODESIGN_CERTIFICATE_PATH}" STREQUAL "" AND "${WINDOWS_CODESIGN_CERTIFICATE_PASSWORD}" STREQUAL "")
+      set(WINDOWS_CODESIGN_ARGS /a /t http://timestamp.verisign.com/scripts/timstamp.dll CACHE STRING "parameters for signtool (list)")
+  else()
+      set(WINDOWS_CODESIGN_ARGS /f ${WINDOWS_CODESIGN_CERTIFICATE_PATH} /p ${WINDOWS_CODESIGN_CERTIFICATE_PASSWORD} CACHE STRING "parameters for signtool (list)")
+  endif()
+  find_program(SIGNTOOL_EXECUTABLE signtool)
+  if(NOT SIGNTOOL_EXECUTABLE)
+    message(FATAL_ERROR "signtool is not found. Signing executables not possible")
+  endif()
+
+  # Check if we're able to sign an executable
+  if(NOT DEFINED WINDOWS_CODESIGN_OK)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/testsign.c "int main(){return 0;}")
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testsign)
+    try_compile(
+      RESULT ${CMAKE_CURRENT_BINARY_DIR}/testsign ${CMAKE_CURRENT_BINARY_DIR}/testsign.c
+      COPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
+    )
+    execute_process(
+      COMMAND ${SIGNTOOL_EXECUTABLE} sign ${WINDOWS_CODESIGN_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
+      RESULT_VARIABLE ERR OUTPUT_QUIET
+    )
+    if(ERR EQUAL 0)
+      message(STATUS "Windows codesigning via signtool enabled")
+      set(WINDOWS_CODESIGN_OK 1 CACHE INTERNAL "Can sign executables")
+    else()
+      message(WARNING "Windows codesigning via signtool is not working and has been disabled")
+      set(WINDOWS_CODESIGN_OK 0 CACHE INTERNAL "Invalid or missing certificate")
+    endif()
+  endif()
+  mark_as_advanced(SIGNTOOL_EXECUTABLE SIGNTOOL_ARGS)
+endif()
+
+macro(windows_codesign_target TARGET)
+  get_target_property(TARGET_TYPE "${TARGET}" TYPE)
+  if(TARGET_TYPE AND NOT TARGET_TYPE MATCHES "STATIC")
+    set(TARGET_LOCATION $<TARGET_FILE:${TARGET}>)
+    if(CMAKE_GENERATOR MATCHES "Visual Studio")
+      string(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" TARGET_LOCATION ${TARGET_LOCATION})
+    endif()
+    install(CODE
+      "execute_process(COMMAND ${SIGNTOOL_EXECUTABLE} sign ${WINDOWS_CODESIGN_ARGS} ${TARGET_LOCATION} RESULT_VARIABLE ERR)
+       if(NOT \${ERR} EQUAL 0)
+         message(FATAL_ERROR \"Error signing ${TARGET_LOCATION}\")
+       endif()
+      ")
+  endif()
+ENDMACRO()
+
+if(WINDOWS_CODESIGN AND WINDOWS_CODESIGN_OK)
+  windows_codesign_target(mixxx)
+endif()
+
 
 install(
   TARGETS
