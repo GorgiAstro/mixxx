@@ -307,6 +307,7 @@ void timecoder_init(struct timecoder *tc, struct timecode_def *def,
     assert(def->lookup);
     tc->def = def;
     tc->speed = speed;
+    tc->sample_rate = sample_rate;
 
     tc->dt = 1.0 / sample_rate;
     tc->zero_alpha = tc->dt / (ZERO_RC + tc->dt);

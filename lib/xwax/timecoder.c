@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <complex.h>
 
 #include "debug.h"
 #include "timecoder.h"
@@ -49,6 +50,9 @@
 #define SWITCH_PHASE 0x1 /* tone phase difference of 270 (not 90) degrees */
 #define SWITCH_PRIMARY 0x2 /* use left channel (not right) as primary */
 #define SWITCH_POLARITY 0x4 /* read bit values in negative (not positive) */
+
+#define PLL_ALPHA 0.02
+#define PLL_BETA 0.0002
 
 static struct timecode_def timecodes[] = {
     {
@@ -300,6 +304,7 @@ void timecoder_init(struct timecoder *tc, struct timecode_def *def,
     assert(def->lookup);
     tc->def = def;
     tc->speed = speed;
+    tc->sample_rate = sample_rate;
 
     tc->dt = 1.0 / sample_rate;
     tc->zero_alpha = tc->dt / (ZERO_RC + tc->dt);
@@ -319,6 +324,9 @@ void timecoder_init(struct timecoder *tc, struct timecode_def *def,
     tc->timecode_ticker = 0;
 
     tc->mon = NULL;
+
+    tc->freq_estimate = def->resolution * speed * 2 * PI / sample_rate;
+    tc->phase_estimate = 0.0;
 }
 
 /*
@@ -477,6 +485,17 @@ static void process_bitstream(struct timecoder *tc, signed int m)
 	  tc->valid_counter);
 }
 
+static void pll_update(struct timecoder *tc,
+                       signed int primary, signed int secondary) {
+    float complex q = primary + secondary * I;
+    float complex ref_signal = cexpf(I * tc->phase_estimate);
+    tc->phase_error = cargf(q * conjf(ref_signal));
+    tc->phase_estimate += PLL_ALPHA * tc->phase_error;
+    tc->freq_estimate += PLL_BETA * tc->phase_error;
+
+    tc->phase_estimate += tc->freq_estimate; // Forward phase for next cycle
+}
+
 /*
  * Process a single sample from the incoming audio
  *
@@ -596,6 +615,7 @@ void timecoder_submit(struct timecoder *tc, signed short *pcm, size_t npcm)
         }
 
 	process_sample(tc, primary, secondary);
+        pll_update(tc, primary, secondary);
         update_monitor(tc, left, right);
 
         pcm += TIMECODER_CHANNELS;

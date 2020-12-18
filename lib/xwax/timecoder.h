@@ -28,6 +28,7 @@
 #include "pitch.h"
 
 #define TIMECODER_CHANNELS 2
+#define PI 3.14159265359
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,6 +59,7 @@ struct timecoder_channel {
 struct timecoder {
     struct timecode_def *def;
     double speed;
+    unsigned int sample_rate;
 
     /* Precomputed values */
 
@@ -82,6 +84,9 @@ struct timecoder {
 
     unsigned char *mon; /* x-y array */
     int mon_size, mon_counter;
+
+    /* frequency estimation in radians per sample, not Hz */
+    float freq_estimate, phase_estimate, phase_error;
 };
 
 struct timecode_def* timecoder_find_definition(const char *name);
@@ -113,7 +118,12 @@ static inline struct timecode_def* timecoder_get_definition(struct timecoder *tc
 
 static inline double timecoder_get_pitch(struct timecoder *tc)
 {
-    return pitch_current(&tc->pitch) / tc->speed;
+    /*if (tc->phase_error > 0.7853975) {
+        // If more than 45° of phase estimation error
+        return 0.0;
+    }*/
+    double freq_hz = tc->freq_estimate * tc->sample_rate / (2 * PI);
+    return (freq_hz / tc->def->resolution) / tc->speed;
 }
 
 /*
