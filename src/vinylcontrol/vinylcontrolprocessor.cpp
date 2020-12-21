@@ -9,7 +9,7 @@
 #include "util/timer.h"
 #include "vinylcontrol/defs_vinylcontrol.h"
 #include "vinylcontrol/vinylcontrol.h"
-#include "vinylcontrol/vinylcontrolxwax.h"
+#include "vinylcontrol/vinylcontrolywax.h"
 
 #define SIGNAL_QUALITY_FIFO_SIZE 256
 #define SAMPLE_PIPE_FIFO_SIZE 65536
@@ -57,10 +57,6 @@ VinylControlProcessor::~VinylControlProcessor() {
             m_samplePipes[i] = NULL;
         }
     }
-
-    // xwax has a global LUT that we need to free after we've shut down our
-    // vinyl control threads because it's not thread-safe.
-    VinylControlXwax::freeLUTs();
 }
 
 void VinylControlProcessor::setSignalQualityReporting(bool enable) {
@@ -144,7 +140,7 @@ void VinylControlProcessor::reloadConfig() {
             continue;
         }
 
-        VinylControl *pNew = new VinylControlXwax(
+        VinylControl *pNew = new VinylControlYwax(
             m_pConfig, kVCGroup.arg(i + 1));
         m_processors.replace(i, pNew);
         locker.unlock();
@@ -166,7 +162,7 @@ void VinylControlProcessor::onInputConfigured(const AudioInput& input) {
         return;
     }
 
-    VinylControl *pNew = new VinylControlXwax(
+    VinylControl *pNew = new VinylControlYwax(
         m_pConfig, kVCGroup.arg(index + 1));
 
     QMutexLocker locker(&m_processorsLock);

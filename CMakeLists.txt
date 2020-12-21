@@ -2396,6 +2396,8 @@ if(VINYLCONTROL)
     src/vinylcontrol/vinylcontrolprocessor.cpp
     src/vinylcontrol/steadypitch.cpp
     src/engine/controls/vinylcontrolcontrol.cpp
+    src/vinylcontrol/vinylcontrolywax.cpp
+    src/vinylcontrol/ywax.cpp
   )
   target_compile_definitions(mixxx-lib PUBLIC __VINYLCONTROL__)
 

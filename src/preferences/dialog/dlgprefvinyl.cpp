@@ -58,6 +58,8 @@ DlgPrefVinyl::DlgPrefVinyl(QWidget * parent, VinylControlManager *pVCMan,
     ComboBoxVinylType1->addItem(MIXXX_VINYL_SERATOCD);
     ComboBoxVinylType1->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEA);
     ComboBoxVinylType1->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEB);
+    ComboBoxVinylType1->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEA);
+    ComboBoxVinylType1->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEB);
     ComboBoxVinylType1->addItem(MIXXX_VINYL_MIXVIBESDVS);
 
     ComboBoxVinylType2->addItem(MIXXX_VINYL_SERATOCV02VINYLSIDEA);
@@ -65,6 +67,8 @@ DlgPrefVinyl::DlgPrefVinyl(QWidget * parent, VinylControlManager *pVCMan,
     ComboBoxVinylType2->addItem(MIXXX_VINYL_SERATOCD);
     ComboBoxVinylType2->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEA);
     ComboBoxVinylType2->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEB);
+    ComboBoxVinylType2->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEA);
+    ComboBoxVinylType2->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEB);
     ComboBoxVinylType2->addItem(MIXXX_VINYL_MIXVIBESDVS);
 
     ComboBoxVinylType3->addItem(MIXXX_VINYL_SERATOCV02VINYLSIDEA);
@@ -72,6 +76,8 @@ DlgPrefVinyl::DlgPrefVinyl(QWidget * parent, VinylControlManager *pVCMan,
     ComboBoxVinylType3->addItem(MIXXX_VINYL_SERATOCD);
     ComboBoxVinylType3->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEA);
     ComboBoxVinylType3->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEB);
+    ComboBoxVinylType3->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEA);
+    ComboBoxVinylType3->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEB);
     ComboBoxVinylType3->addItem(MIXXX_VINYL_MIXVIBESDVS);
 
     ComboBoxVinylType4->addItem(MIXXX_VINYL_SERATOCV02VINYLSIDEA);
@@ -79,6 +85,8 @@ DlgPrefVinyl::DlgPrefVinyl(QWidget * parent, VinylControlManager *pVCMan,
     ComboBoxVinylType4->addItem(MIXXX_VINYL_SERATOCD);
     ComboBoxVinylType4->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEA);
     ComboBoxVinylType4->addItem(MIXXX_VINYL_TRAKTORSCRATCHSIDEB);
+    ComboBoxVinylType4->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEA);
+    ComboBoxVinylType4->addItem(MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEB);
     ComboBoxVinylType4->addItem(MIXXX_VINYL_MIXVIBESDVS);
 
     ComboBoxVinylSpeed1->addItem(MIXXX_VINYL_SPEED_33);
@@ -305,6 +313,10 @@ int DlgPrefVinyl::getDefaultLeadIn(const QString& vinyl_type) const {
         return MIXXX_VINYL_TRAKTORSCRATCHSIDEA_LEADIN;
     } else if (vinyl_type == MIXXX_VINYL_TRAKTORSCRATCHSIDEB) {
         return MIXXX_VINYL_TRAKTORSCRATCHSIDEB_LEADIN;
+    } else if (vinyl_type == MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEA) {
+        return MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEA_LEADIN;
+    } else if (vinyl_type == MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEB) {
+        return MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEB_LEADIN;
     } else if (vinyl_type == MIXXX_VINYL_MIXVIBESDVS) {
         return MIXXX_VINYL_MIXVIBESDVS_LEADIN;
     }
