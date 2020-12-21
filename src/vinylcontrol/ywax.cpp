@@ -4,8 +4,8 @@ using namespace std::complex_literals;
 
 Ywax::Ywax(VinylType vinylType, int sampleRate) :
   m_sampleRate(sampleRate),
-  phaseError(0.0),
-  phaseErrorAverage(0.0),
+  phaseError(M_PI),
+  phaseErrorAverage(M_PI),
   phaseEstimate(0.0),
   freqEstimate (0.0) {
     m_vinylSettings = allVinylSettings.at(vinylType);
@@ -15,6 +15,7 @@ bool Ywax::submitPcmData(float *pcm, size_t npcm) {
     bool bHaveSignal = pcm[0]*pcm[0] + pcm[1]*pcm[1] > kMinSignal; // 2-Norm of stereo sample
     if (!bHaveSignal) {
         return false; // No signal yet
+        // TODO: trigger state transition directly to no phase sync
     }
 
     float left, right, primary, secondary;
@@ -53,16 +54,27 @@ bool Ywax::updatePll(std::complex<float> sample) {
     freqEstimate += PLL_BETA * phaseError;
 
     phaseEstimate += freqEstimate; // Forward phase for next cycle
+
+    phaseErrorAverage = phaseError * runningAverageScaling
+            + phaseErrorAverage * (1. - runningAverageScaling);
+    return true;
+}
+
+bool Ywax::getToneFreq(float &toneFreq_Hz) {
+    if (phaseErrorAverage > PLL_PHASE_ERROR_THRES) {
+        // If too much phase estimation error
+        return false;
+    }
+    toneFreq_Hz = freqEstimate * m_sampleRate / (2 * M_PI);
     return true;
 }
 
 bool Ywax::getPitch(float &pitch) {
-    // TODO: replace by average phase error
-    if (phaseError > PLL_PHASE_ERROR_THRES) {
-        // If too much phase estimation error
+    float currentToneFreq;
+    if (!getToneFreq(currentToneFreq)) {
         return false;
     }
-    float freq_hz = freqEstimate * m_sampleRate / (2 * M_PI);
-    pitch = freq_hz / m_vinylSettings.toneFreq;
+
+    pitch = currentToneFreq / m_vinylSettings.toneFreq;
     return true;
 }

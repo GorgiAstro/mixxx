@@ -15,7 +15,6 @@
 #include "vinylcontrol/defs_vinylcontrol.h"
 #include "vinylcontrol/vinylcontrol.h"
 #include "vinylcontrol/vinylcontrolprocessor.h"
-#include "vinylcontrol/vinylcontrolxwax.h"
 
 VinylControlManager::VinylControlManager(QObject* pParent,
                                          UserSettingsPointer pConfig,

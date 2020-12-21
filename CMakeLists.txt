@@ -2389,7 +2389,6 @@ if(VINYLCONTROL)
 
   target_sources(mixxx-lib PRIVATE
     src/vinylcontrol/vinylcontrol.cpp
-    src/vinylcontrol/vinylcontrolxwax.cpp
     src/preferences/dialog/dlgprefvinyl.cpp
     src/vinylcontrol/vinylcontrolsignalwidget.cpp
     src/vinylcontrol/vinylcontrolmanager.cpp

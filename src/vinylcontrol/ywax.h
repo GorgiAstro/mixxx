@@ -32,11 +32,22 @@ public:
     bool submitPcmData(float* pcm, size_t npcm);
 
     /**
+     * @brief getToneFreq return the detected tone frequency in Hz
+     * @param[out] toneFreq_Hz the currently detected tone frequency in Hz
+     * @return true if PLL is successful, false otherwise
+     */
+    bool getToneFreq(float &toneFreq_Hz);
+
+    /**
      * @brief getPitch Gives current pitch
      * @param[out] pitch current pitch
      * @return true if PLL is healthy, based on the phase error
      */
     bool getPitch(float &pitch);
+
+    float getPhaseError() {
+        return phaseErrorAverage;
+    }
 
 private:
     struct VinylSettings {
@@ -114,11 +125,12 @@ private:
         }
     };
 
-    static constexpr float kMinSignal = 0.05; // Normalized in [0-1] range
+    static constexpr float kMinSignal = 0.000001; // Minimum squared norm required for input signal (normalized in [0-1] range)
     static constexpr float PLL_ALPHA = 0.02;
     static constexpr float PLL_BETA = 0.0002;
     static constexpr float PLL_PHASE_ERROR_THRES = M_PI / 36; // 5 degree
-    static constexpr uint8_t phaseErrorAverageSteps = 10;
+    static constexpr uint16_t phaseErrorAverageSteps = 100;
+    static constexpr float runningAverageScaling = 1. / (phaseErrorAverageSteps + 1);
 
     /**
      * Settings defined in constructor
