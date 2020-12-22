@@ -2,7 +2,7 @@
 
 using namespace std::complex_literals;
 
-Ywax::Ywax(VinylType vinylType, int sampleRate, float rpmNominal) :
+Ywax::Ywax(VinylType vinylType, int sampleRate, double rpmNominal) :
   m_sampleRate(sampleRate),
   m_rpmNominal(rpmNominal),
   phaseError(M_PI),
@@ -30,7 +30,7 @@ bool Ywax::submitPcmData(float *pcm, size_t npcm) { // 2-Norm of stereo sample
             secondary = left;
         }
 
-        std::complex<float> complexSample(primary, secondary);
+        cplex complexSample(primary, secondary);
 
         // Updating running average of square norm
         sampleNormSquaredAverage = std::norm(complexSample) * levelDetectionScaling
@@ -51,7 +51,7 @@ bool Ywax::submitPcmData(float *pcm, size_t npcm) { // 2-Norm of stereo sample
     return true;
 }
 
-bool Ywax::processSample(std::complex<float> sample) {
+bool Ywax::processSample(cplex sample) {
     return updatePll(sample);
 }
 
@@ -62,8 +62,8 @@ void Ywax::resetPll() {
     freqEstimate = 0.0;
 }
 
-bool Ywax::updatePll(std::complex<float> sample) {
-    std::complex<float> ref_signal = static_cast<std::complex<float>>(
+bool Ywax::updatePll(cplex sample) {
+    cplex ref_signal = static_cast<cplex>(
         std::exp(1i * static_cast<double>(phaseEstimate)));
     phaseError = std::arg(sample * std::conj(ref_signal));
     phaseEstimate += PLL_ALPHA * phaseError;
@@ -76,7 +76,7 @@ bool Ywax::updatePll(std::complex<float> sample) {
     return true;
 }
 
-bool Ywax::getToneFreq(float &toneFreq_Hz) {
+bool Ywax::getToneFreq(double &toneFreq_Hz) {
     if (phaseErrorAverage > PLL_PHASE_ERROR_THRES) {
         // If too much phase estimation error
         return false;
@@ -86,7 +86,7 @@ bool Ywax::getToneFreq(float &toneFreq_Hz) {
 }
 
 bool Ywax::getPitch(double &pitch) {
-    float currentToneFreq;
+    double currentToneFreq;
     if (!getToneFreq(currentToneFreq)) {
         return false;
     }
@@ -95,7 +95,7 @@ bool Ywax::getPitch(double &pitch) {
     return true;
 }
 
-bool Ywax::getRevPerSecond(float &rps) {
+bool Ywax::getRevPerSecond(double &rps) {
     double pitch;
     if (!getPitch(pitch)) {
         return false;

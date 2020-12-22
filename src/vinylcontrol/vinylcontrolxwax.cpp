@@ -118,7 +118,7 @@ VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& g
         m_pSteadyGross = new SteadyPitch(0.5, false);
     }
 
-    float rpm = 100.0 / 3.0;
+    double rpm = 100.0 / 3.0;
     if (strVinylSpeed == MIXXX_VINYL_SPEED_45) {
         rpm = 45.0;
     }
@@ -203,8 +203,6 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
     }
 
     bool bHaveSignal = ywax->submitPcmData(pSamplesWithGain, nFrames);
-
-    qDebug() << "signal?" << bHaveSignal;
 
     if(bHaveSignal) {
         // Always analyze the input samples
@@ -784,7 +782,7 @@ float VinylControlXwax::getAngle() {
         return -1.0;
     }
 
-    float rps;
+    double rps;
     if (!ywax->getRevPerSecond(rps)) {
         return -1.0;
     }

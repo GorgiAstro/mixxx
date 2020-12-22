@@ -6,6 +6,8 @@
 #include <complex>
 #include <cmath>
 
+using cplex = std::complex<double>;
+
 class Ywax
 {
 public:
@@ -21,7 +23,7 @@ public:
         mixvibes_7inch
     };
 
-    Ywax(VinylType vinylType, int sampleRate, float rpmNominal);
+    Ywax(VinylType vinylType, int sampleRate, double rpmNominal);
 
     /**
      * @brief submitPcmData submit stereo data to the decoder.
@@ -36,7 +38,7 @@ public:
      * @param[out] toneFreq_Hz the currently detected tone frequency in Hz
      * @return true if PLL is successful, false otherwise
      */
-    bool getToneFreq(float &toneFreq_Hz);
+    bool getToneFreq(double &toneFreq_Hz);
 
     /**
      * @brief getPitch Gives current pitch
@@ -45,13 +47,13 @@ public:
      */
     bool getPitch(double &pitch);
 
-    float getPhaseError() {
+    double getPhaseError() {
         return phaseErrorAverage;
     }
 
     int getPosition();
 
-    bool getRevPerSecond(float &rps);
+    bool getRevPerSecond(double &rps);
 
 private:
     struct VinylSettings {
@@ -130,32 +132,32 @@ private:
         }
     };
 
-    static constexpr float kMinSignal = 0.001; // Minimum squared norm required for input signal (normalized in [0-1] range)
-    static constexpr float PLL_ALPHA = 0.02;
-    static constexpr float PLL_BETA = 0.0002;
-    static constexpr float PLL_PHASE_ERROR_THRES = M_PI / 36; // 5 degree
+    static constexpr double kMinSignal = 0.001; // Minimum squared norm required for input signal (normalized in [0-1] range)
+    static constexpr double PLL_ALPHA = 0.02;
+    static constexpr double PLL_BETA = 0.0002;
+    static constexpr double PLL_PHASE_ERROR_THRES = M_PI / 36; // 5 degree
     static constexpr uint16_t phaseErrorAverageSteps = 100;
-    static constexpr float phaseRunningAverageScaling = 1. / (phaseErrorAverageSteps + 1);
-    static constexpr float levelDetectionWindow = 10.0; // Averaging window, counted in tone cycles. For input level detection
+    static constexpr double phaseRunningAverageScaling = 1. / (phaseErrorAverageSteps + 1);
+    static constexpr double levelDetectionWindow = 10.0; // Averaging window, counted in tone cycles. For input level detection
 
     /**
      * Settings defined in constructor
      */
     VinylSettings m_vinylSettings;
     int m_sampleRate; // in samples per second
-    float m_rpmNominal; // Nominal vinyl rotation speed in rotations per minute
-    float levelDetectionScaling; // Running average scaling factor for input level detection
+    double m_rpmNominal; // Nominal vinyl rotation speed in rotations per minute
+    double levelDetectionScaling; // Running average scaling factor for input level detection
 
     /**
      * Variables updated in decoding process
      */
-    float phaseError; // in radians
-    float phaseErrorAverage;
-    float phaseEstimate;
-    float freqEstimate; // in radians per sample, not Hz
-    float sampleNormSquaredAverage;
+    double phaseError; // in radians
+    double phaseErrorAverage;
+    double phaseEstimate;
+    double freqEstimate; // in radians per sample, not Hz
+    double sampleNormSquaredAverage;
 
-    bool processSample(std::complex<float> sample);
+    bool processSample(cplex sample);
     void resetPll();
-    bool updatePll(std::complex<float> sample);
+    bool updatePll(cplex sample);
 };
