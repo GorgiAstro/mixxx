@@ -2,8 +2,9 @@
 
 using namespace std::complex_literals;
 
-Ywax::Ywax(VinylType vinylType, int sampleRate) :
+Ywax::Ywax(VinylType vinylType, int sampleRate, float rpmNominal) :
   m_sampleRate(sampleRate),
+  m_rpmNominal(rpmNominal),
   phaseError(M_PI),
   phaseErrorAverage(M_PI),
   phaseEstimate(0.0),
@@ -69,7 +70,7 @@ bool Ywax::getToneFreq(float &toneFreq_Hz) {
     return true;
 }
 
-bool Ywax::getPitch(float &pitch) {
+bool Ywax::getPitch(double &pitch) {
     float currentToneFreq;
     if (!getToneFreq(currentToneFreq)) {
         return false;
@@ -77,4 +78,18 @@ bool Ywax::getPitch(float &pitch) {
 
     pitch = currentToneFreq / m_vinylSettings.toneFreq;
     return true;
+}
+
+bool Ywax::getRevPerSecond(float &rps) {
+    double pitch;
+    if (!getPitch(pitch)) {
+        return false;
+    }
+    rps = m_rpmNominal * pitch / 60.0f;
+    return true;
+}
+
+int Ywax::getPosition() {
+    // TODO: implement absolute mode :)
+    return -1;
 }

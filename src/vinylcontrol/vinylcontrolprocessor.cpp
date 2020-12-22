@@ -9,7 +9,7 @@
 #include "util/timer.h"
 #include "vinylcontrol/defs_vinylcontrol.h"
 #include "vinylcontrol/vinylcontrol.h"
-#include "vinylcontrol/vinylcontrolywax.h"
+#include "vinylcontrol/vinylcontrolxwax.h"
 
 #define SIGNAL_QUALITY_FIFO_SIZE 256
 #define SAMPLE_PIPE_FIFO_SIZE 65536
@@ -140,7 +140,7 @@ void VinylControlProcessor::reloadConfig() {
             continue;
         }
 
-        VinylControl *pNew = new VinylControlYwax(
+        VinylControl *pNew = new VinylControlXwax(
             m_pConfig, kVCGroup.arg(i + 1));
         m_processors.replace(i, pNew);
         locker.unlock();
@@ -162,7 +162,7 @@ void VinylControlProcessor::onInputConfigured(const AudioInput& input) {
         return;
     }
 
-    VinylControl *pNew = new VinylControlYwax(
+    VinylControl *pNew = new VinylControlXwax(
         m_pConfig, kVCGroup.arg(index + 1));
 
     QMutexLocker locker(&m_processorsLock);

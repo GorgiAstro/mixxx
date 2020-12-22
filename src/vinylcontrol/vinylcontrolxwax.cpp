@@ -42,12 +42,6 @@ namespace {
 constexpr int kChannels = 2;
 }
 
-// Sample threshold below which we consider there to be no signal.
-const double kMinSignal = 75.0 / SAMPLE_MAX;
-
-bool VinylControlXwax::s_bLUTInitialized = false;
-QMutex VinylControlXwax::s_xwaxLUTMutex;
-
 VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& group)
         : VinylControl(pConfig, group),
           m_dVinylPositionOld(0.0),
@@ -90,31 +84,32 @@ VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& g
     QString strVinylSpeed = m_pConfig->getValueString(
         ConfigKey(group,"vinylcontrol_speed_type"));
 
-    // libxwax indexes by C-strings so we pass libxwax string literals so we
-    // don't have to deal with freeing the strings later
-    char* timecode = NULL;
-
-
-    if (strVinylType == MIXXX_VINYL_SERATOCV02VINYLSIDEA) {
-        timecode = (char*)"serato_2a";
-    }
-    else if (strVinylType == MIXXX_VINYL_SERATOCV02VINYLSIDEB) {
-        timecode = (char*)"serato_2b";
+    Ywax::VinylType vinylType;
+    // Mapping the settings string to an Ywax enum
+    if (strVinylType == MIXXX_VINYL_MIXVIBESDVS) {
+        vinylType = Ywax::VinylType::mixvibes_v2;
+    } else if (strVinylType == MIXXX_VINYL_SERATOCV02VINYLSIDEA) {
+        vinylType = Ywax::VinylType::serato_2a;
+    } else if (strVinylType == MIXXX_VINYL_SERATOCV02VINYLSIDEB) {
+        vinylType = Ywax::VinylType::serato_2b;
     } else if (strVinylType == MIXXX_VINYL_SERATOCD) {
-        timecode = (char*)"serato_cd";
+        vinylType = Ywax::VinylType::serato_cd;
         m_bCDControl = true;
         // Set up very sensitive steady monitors for CDJs.
         m_pSteadySubtle = new SteadyPitch(0.06, true);
         m_pSteadyGross = new SteadyPitch(0.25, true);
     } else if (strVinylType == MIXXX_VINYL_TRAKTORSCRATCHSIDEA) {
-        timecode = (char*)"traktor_a";
+        vinylType = Ywax::VinylType::traktor_a;
     } else if (strVinylType == MIXXX_VINYL_TRAKTORSCRATCHSIDEB) {
-        timecode = (char*)"traktor_b";
-    } else if (strVinylType == MIXXX_VINYL_MIXVIBESDVS) {
-        timecode = (char*)"mixvibes_v2";
+        vinylType = Ywax::VinylType::traktor_b;
+    } else if (strVinylType == MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEA) {
+        vinylType = Ywax::VinylType::traktor_mk2_a;
+    } else if (strVinylType == MIXXX_VINYL_TRAKTORSCRATCHMK2SIDEB) {
+        vinylType = Ywax::VinylType::traktor_mk2_b;
     } else {
+        // TODO: throw exception, but defaulting to Serato for now
         qDebug() << "Unknown vinyl type, defaulting to serato_2a";
-        timecode = (char*)"serato_2a";
+        vinylType = Ywax::VinylType::serato_2a;
     }
 
     // If we didn't set up the steady monitors already (not CDJ), do it now.
@@ -125,19 +120,9 @@ VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& g
         m_pSteadyGross = new SteadyPitch(0.5, false);
     }
 
-
-    timecode_def* tc_def = timecoder_find_definition(timecode);
-    if (tc_def == NULL) {
-        qDebug() << "Error finding timecode definition for " << timecode << ", defaulting to serato_2a";
-        timecode = (char*)"serato_2a";
-        tc_def = timecoder_find_definition(timecode);
-    }
-
-    double speed = 1.0;
-    double rpm = 100.0 / 3.0;
+    float rpm = 100.0 / 3.0;
     if (strVinylSpeed == MIXXX_VINYL_SPEED_45) {
         rpm = 45.0;
-        speed = 1.35;
     }
 
     double latency = ControlObject::get(
@@ -155,23 +140,10 @@ VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& g
     m_iPitchRingSize = static_cast<int>(60000 / (rpm * latency * 4));
     m_pPitchRing = new double[m_iPitchRingSize];
 
-    qDebug() << "Xwax Vinyl control starting with a sample rate of:" << iSampleRate;
-    qDebug() << "Building timecode lookup tables for" << strVinylType << "with speed" << strVinylSpeed;
+    qDebug() << "Ywax Vinyl control starting with a sample rate of:" << iSampleRate;
+    ywax = new Ywax(vinylType, iSampleRate, rpm);
 
-    // Initialize the timecoder structure. Use the static mutex so that we only
-    // do this once across the VinylControlXwax instances.
-    s_xwaxLUTMutex.lock();
-
-    timecoder_init(&timecoder, tc_def, speed, iSampleRate, /* phono */ false);
-    timecoder_monitor_init(&timecoder, MIXXX_VINYL_SCOPE_SIZE);
-    //Note that timecoder_init will not double-malloc the LUTs, and after this we are guaranteed
-    //that the LUT has been generated unless we ran out of memory.
-    s_bLUTInitialized = true;
-    m_uiSafeZone = timecoder_get_safe(&timecoder);
-    //}
-    s_xwaxLUTMutex.unlock();
-
-    qDebug() << "Starting vinyl control xwax thread";
+    qDebug() << "Starting vinyl control ywax thread";
 }
 
 VinylControlXwax::~VinylControlXwax() {
@@ -180,33 +152,17 @@ VinylControlXwax::~VinylControlXwax() {
     delete [] m_pPitchRing;
     delete [] m_pWorkBuffer;
 
-    // Cleanup xwax nicely
-    timecoder_monitor_clear(&timecoder);
-    timecoder_clear(&timecoder);
-
-    // TODO(rryan): This looks wrong. freeLUTs is called later by
-    // VinylControlProcessor so we are probably leaking the LUTs.
-    s_bLUTInitialized = false;
+    delete ywax;
 
     m_pVCRate->set(0.0);
 }
-
-//static
-void VinylControlXwax::freeLUTs() {
-    s_xwaxLUTMutex.lock(); //Static mutex! We don't want two threads doing this!
-    if (s_bLUTInitialized) {
-        timecoder_free_lookup(); //Frees all the LUTs in xwax.
-        s_bLUTInitialized = false;
-    }
-    s_xwaxLUTMutex.unlock();
-}
-
 
 bool VinylControlXwax::writeQualityReport(VinylSignalQualityReport* pReport) {
     if (pReport) {
         pReport->timecode_quality = m_fTimecodeQuality;
         pReport->angle = getAngle();
-        memcpy(pReport->scope, timecoder.mon, sizeof(pReport->scope));
+        // TODO: create a scope visualization from ywax
+        //memcpy(pReport->scope, timecoder.mon, sizeof(pReport->scope));
         return true;
     }
     return false;
@@ -230,26 +186,15 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
         m_workBufferSize = samplesSize;
     }
 
-    // Convert CSAMPLE samples to shorts, preventing overflow.
-    for (int i = 0; i < static_cast<int>(samplesSize); ++i) {
-        CSAMPLE sample = pSamples[i] * gain * SAMPLE_MAX;
+    CSAMPLE pSamplesWithGain[samplesSize];
 
-        if (sample > SAMPLE_MAX) {
-            m_pWorkBuffer[i] = SAMPLE_MAX;
-        } else if (sample < SAMPLE_MIN) {
-            m_pWorkBuffer[i] = SAMPLE_MIN;
-        } else {
-            m_pWorkBuffer[i] = static_cast<short>(sample);
-        }
+    // Applying gain, but limiting to [-1, 1] range
+    for (int i = 0; i < static_cast<int>(samplesSize); ++i) {
+        pSamplesWithGain[i] = CSAMPLE_clamp(pSamples[i] * gain);
     }
 
-    // Submit the samples to the xwax timecode processor. The size argument is
-    // in stereo frames.
-    timecoder_submit(&timecoder, m_pWorkBuffer, nFrames);
+    bool bHaveSignal = ywax->submitPcmData(pSamplesWithGain, nFrames);
 
-    qDebug() << "freq: " << timecoder.freq_estimate << ", freq (Hz): " << timecoder.freq_estimate*44100/2/3.1415926 << ", Phase error: " << timecoder.phase_error;
-
-    bool bHaveSignal = fabs(pSamples[0]) + fabs(pSamples[1]) > kMinSignal;
     //qDebug() << "signal?" << bHaveSignal;
 
     //TODO: Move all these config object get*() calls to an "updatePrefs()" function,
@@ -262,7 +207,7 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
 
     if(bHaveSignal) {
         // Always analyze the input samples
-        m_iPosition = timecoder_get_position(&timecoder, NULL);
+        m_iPosition = ywax->getPosition();
         //Notify the UI if the timecode quality is good
         establishQuality(m_iPosition != -1);
     }
@@ -272,8 +217,8 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
         return;
     }
 
-    double dVinylPitch = timecoder_get_pitch(&timecoder);
-    qDebug() << "Pitch: " << dVinylPitch;
+    double dVinylPitch;
+    bHaveSignal = ywax->getPitch(dVinylPitch);
 
     // Has a new track been loaded? Currently we use track duration which is
     // integer seconds in the song. However, for calculations we need the
@@ -837,13 +782,16 @@ void VinylControlXwax::establishQuality(bool quality_sample) {
 }
 
 float VinylControlXwax::getAngle() {
-    float pos = timecoder_get_position(&timecoder, NULL);
+    float pos = ywax->getPosition();
 
     if (pos == -1) {
         return -1.0;
     }
 
-    const auto rps = static_cast<float>(timecoder_revs_per_sec(&timecoder));
+    float rps;
+    if (!ywax->getRevPerSecond(rps)) {
+        return -1.0;
+    }
     // Invert angle to make vinyl spin direction correct.
     return 360 - (static_cast<int>(pos / 1000.0f * 360.0f * rps) % 360);
 }

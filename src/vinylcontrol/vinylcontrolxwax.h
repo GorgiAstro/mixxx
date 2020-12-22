@@ -7,14 +7,7 @@
 #include "vinylcontrol/vinylcontrol.h"
 #include "vinylcontrol/steadypitch.h"
 #include "util/types.h"
-
-#ifdef _MSC_VER
-#include "timecoder.h"
-#else
-extern "C" {
-#include "timecoder.h"
-}
-#endif
+#include "ywax.h"
 
 #define XWAX_DEVICE_FRAME 32
 #define XWAX_SMOOTHING (128 / XWAX_DEVICE_FRAME) /* result value is in frames */
@@ -25,7 +18,6 @@ class VinylControlXwax : public VinylControl {
     VinylControlXwax(UserSettingsPointer pConfig, const QString& group);
     virtual ~VinylControlXwax();
 
-    static void freeLUTs();
     void analyzeSamples(CSAMPLE* pSamples, size_t nFrames);
 
     virtual bool writeQualityReport(VinylSignalQualityReport* qualityReportFifo);
@@ -132,12 +124,11 @@ class VinylControlXwax : public VinylControl {
     // with updates.
     double m_dUiUpdateTime;
 
-    // Contains information that xwax's code needs internally about the timecode
-    // and how to process it.
-    struct timecoder timecoder;
     // Static mutex that protects our creation/destruction of the xwax LUTs
     static QMutex s_xwaxLUTMutex;
     static bool s_bLUTInitialized;
+
+    Ywax* ywax;
 };
 
 #endif

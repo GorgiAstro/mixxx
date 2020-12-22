@@ -21,7 +21,7 @@ public:
         mixvibes_7inch
     };
 
-    Ywax(VinylType vinylType, int sampleRate);
+    Ywax(VinylType vinylType, int sampleRate, float rpmNominal);
 
     /**
      * @brief submitPcmData submit stereo data to the decoder.
@@ -43,11 +43,15 @@ public:
      * @param[out] pitch current pitch
      * @return true if PLL is healthy, based on the phase error
      */
-    bool getPitch(float &pitch);
+    bool getPitch(double &pitch);
 
     float getPhaseError() {
         return phaseErrorAverage;
     }
+
+    int getPosition();
+
+    bool getRevPerSecond(float &rps);
 
 private:
     struct VinylSettings {
@@ -137,6 +141,7 @@ private:
      */
     VinylSettings m_vinylSettings;
     int m_sampleRate; // in samples per second
+    float m_rpmNominal; // Nominal vinyl rotation speed in rotations per minute
 
     /**
      * Variables updated in decoding process
