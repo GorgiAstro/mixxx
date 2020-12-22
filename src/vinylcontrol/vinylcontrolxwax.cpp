@@ -168,6 +168,20 @@ bool VinylControlXwax::writeQualityReport(VinylSignalQualityReport* pReport) {
 
 void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
     ScopedTimer t("VinylControlXwax::analyzeSamples");
+
+    //TODO: Move all these config object get*() calls to an "updatePrefs()" function,
+    //        and make that get called when any options get changed in the preferences dialog, rather than
+    //        polling everytime we get a buffer.
+
+
+    // Check if vinyl control is enabled...
+    m_bIsEnabled = enabled && checkEnabled(m_bIsEnabled, enabled->toBool());
+
+    //are we even playing and enabled at all?
+    if (!m_bIsEnabled) {
+        return;
+    }
+
     auto gain = static_cast<CSAMPLE_GAIN>(m_pVinylControlInputGain->get());
 
     // We only support amplifying with the VC pre-amp.
@@ -192,24 +206,11 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
 
     qDebug() << "signal?" << bHaveSignal;
 
-    //TODO: Move all these config object get*() calls to an "updatePrefs()" function,
-    //        and make that get called when any options get changed in the preferences dialog, rather than
-    //        polling everytime we get a buffer.
-
-
-    // Check if vinyl control is enabled...
-    m_bIsEnabled = enabled && checkEnabled(m_bIsEnabled, enabled->toBool());
-
     if(bHaveSignal) {
         // Always analyze the input samples
         m_iPosition = ywax->getPosition();
         //Notify the UI if the timecode quality is good
         establishQuality(m_iPosition != -1);
-    }
-
-    //are we even playing and enabled at all?
-    if (!m_bIsEnabled) {
-        return;
     }
 
     double dVinylPitch;
