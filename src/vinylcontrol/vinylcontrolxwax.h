@@ -45,10 +45,6 @@ class VinylControlXwax : public VinylControl {
     // The position read last time it was polled.
     double m_dVinylPositionOld;
 
-    // Scratch buffer for CSAMPLE -> short conversions.
-    short* m_pWorkBuffer;
-    size_t m_workBufferSize;
-
     // Signal quality ring buffer.
     // TODO(XXX): Replace with CircularBuffer instead of handling the ring logic
     // in VinylControlXwax.

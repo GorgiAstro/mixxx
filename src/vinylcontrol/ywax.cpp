@@ -8,16 +8,13 @@ Ywax::Ywax(VinylType vinylType, int sampleRate, float rpmNominal) :
   phaseError(M_PI),
   phaseErrorAverage(M_PI),
   phaseEstimate(0.0),
-  freqEstimate (0.0) {
+  freqEstimate(0.0),
+  sampleNormSquaredAverage(0.0){
     m_vinylSettings = allVinylSettings.at(vinylType);
+    levelDetectionScaling = 1. / (levelDetectionWindow * sampleRate / m_vinylSettings.toneFreq + 1);
 }
 
-bool Ywax::submitPcmData(float *pcm, size_t npcm) {
-    bool bHaveSignal = pcm[0]*pcm[0] + pcm[1]*pcm[1] > kMinSignal; // 2-Norm of stereo sample
-    if (!bHaveSignal) {
-        return false; // No signal yet
-        // TODO: trigger state transition directly to no phase sync
-    }
+bool Ywax::submitPcmData(float *pcm, size_t npcm) { // 2-Norm of stereo sample
 
     float left, right, primary, secondary;
     while (npcm--) {
@@ -35,9 +32,20 @@ bool Ywax::submitPcmData(float *pcm, size_t npcm) {
 
         std::complex<float> complexSample(primary, secondary);
 
+        // Updating running average of square norm
+        sampleNormSquaredAverage = std::norm(complexSample) * levelDetectionScaling
+                + sampleNormSquaredAverage * (1. - levelDetectionScaling);
+
         processSample(complexSample);
 
         pcm += TIMECODER_CHANNELS;
+    }
+
+    if (sampleNormSquaredAverage < kMinSignal) {
+        // Level is too low, resetting PLL
+        sampleNormSquaredAverage = 0.0;
+        resetPll();
+        return false;
     }
 
     return true;
@@ -45,6 +53,13 @@ bool Ywax::submitPcmData(float *pcm, size_t npcm) {
 
 bool Ywax::processSample(std::complex<float> sample) {
     return updatePll(sample);
+}
+
+void Ywax::resetPll() {
+    phaseError = M_PI;
+    phaseErrorAverage = M_PI;
+    phaseEstimate = 0.0;
+    freqEstimate = 0.0;
 }
 
 bool Ywax::updatePll(std::complex<float> sample) {
@@ -56,8 +71,8 @@ bool Ywax::updatePll(std::complex<float> sample) {
 
     phaseEstimate += freqEstimate; // Forward phase for next cycle
 
-    phaseErrorAverage = phaseError * runningAverageScaling
-            + phaseErrorAverage * (1. - runningAverageScaling);
+    phaseErrorAverage = phaseError * phaseRunningAverageScaling
+            + phaseErrorAverage * (1. - phaseRunningAverageScaling);
     return true;
 }
 

@@ -45,8 +45,6 @@ constexpr int kChannels = 2;
 VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& group)
         : VinylControl(pConfig, group),
           m_dVinylPositionOld(0.0),
-          m_pWorkBuffer(new short[MAX_BUFFER_LEN]),
-          m_workBufferSize(MAX_BUFFER_LEN),
           m_iQualPos(0),
           m_iQualFilled(0),
           m_iPosition(-1),
@@ -150,7 +148,6 @@ VinylControlXwax::~VinylControlXwax() {
     delete m_pSteadySubtle;
     delete m_pSteadyGross;
     delete [] m_pPitchRing;
-    delete [] m_pWorkBuffer;
 
     delete ywax;
 
@@ -179,23 +176,21 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
     }
 
     size_t samplesSize = nFrames * kChannels;
-
-    if (samplesSize > m_workBufferSize) {
-        delete [] m_pWorkBuffer;
-        m_pWorkBuffer = new short[samplesSize];
-        m_workBufferSize = samplesSize;
-    }
-
     CSAMPLE pSamplesWithGain[samplesSize];
 
     // Applying gain, but limiting to [-1, 1] range
     for (int i = 0; i < static_cast<int>(samplesSize); ++i) {
-        pSamplesWithGain[i] = CSAMPLE_clamp(pSamples[i] * gain);
+        CSAMPLE sampleWithGain = pSamples[i] * gain;
+        if (std::fabs(sampleWithGain) > 1.0) {
+            // Preventing saturation
+            sampleWithGain = sampleWithGain / std::fabs(sampleWithGain);
+        }
+        pSamplesWithGain[i] = sampleWithGain;
     }
 
     bool bHaveSignal = ywax->submitPcmData(pSamplesWithGain, nFrames);
 
-    //qDebug() << "signal?" << bHaveSignal;
+    qDebug() << "signal?" << bHaveSignal;
 
     //TODO: Move all these config object get*() calls to an "updatePrefs()" function,
     //        and make that get called when any options get changed in the preferences dialog, rather than

@@ -65,7 +65,8 @@ private:
     static constexpr int SWITCH_POLARITY = 0x4; /* read bit values in negative (not positive) */
 
     const std::map <VinylType, VinylSettings> allVinylSettings {
-        {   serato_2a,
+        {
+            serato_2a,
             {
                 .toneFreq = 1000,
                 .flags = 0,
@@ -103,14 +104,14 @@ private:
             traktor_mk2_a,
             {
                 .toneFreq = 2500,
-                .flags = SWITCH_PRIMARY | SWITCH_POLARITY | SWITCH_PHASE,
+                .flags = SWITCH_POLARITY | SWITCH_PHASE,
             }
         },
         {
             traktor_mk2_b,
             {
                 .toneFreq = 2500,
-                .flags = SWITCH_PRIMARY | SWITCH_POLARITY | SWITCH_PHASE,
+                .flags = SWITCH_POLARITY | SWITCH_PHASE,
             }
         },
         {
@@ -129,12 +130,13 @@ private:
         }
     };
 
-    static constexpr float kMinSignal = 0.000001; // Minimum squared norm required for input signal (normalized in [0-1] range)
+    static constexpr float kMinSignal = 0.001; // Minimum squared norm required for input signal (normalized in [0-1] range)
     static constexpr float PLL_ALPHA = 0.02;
     static constexpr float PLL_BETA = 0.0002;
     static constexpr float PLL_PHASE_ERROR_THRES = M_PI / 36; // 5 degree
     static constexpr uint16_t phaseErrorAverageSteps = 100;
-    static constexpr float runningAverageScaling = 1. / (phaseErrorAverageSteps + 1);
+    static constexpr float phaseRunningAverageScaling = 1. / (phaseErrorAverageSteps + 1);
+    static constexpr float levelDetectionWindow = 10.0; // Averaging window, counted in tone cycles. For input level detection
 
     /**
      * Settings defined in constructor
@@ -142,6 +144,7 @@ private:
     VinylSettings m_vinylSettings;
     int m_sampleRate; // in samples per second
     float m_rpmNominal; // Nominal vinyl rotation speed in rotations per minute
+    float levelDetectionScaling; // Running average scaling factor for input level detection
 
     /**
      * Variables updated in decoding process
@@ -150,7 +153,9 @@ private:
     float phaseErrorAverage;
     float phaseEstimate;
     float freqEstimate; // in radians per sample, not Hz
+    float sampleNormSquaredAverage;
 
     bool processSample(std::complex<float> sample);
+    void resetPll();
     bool updatePll(std::complex<float> sample);
 };
