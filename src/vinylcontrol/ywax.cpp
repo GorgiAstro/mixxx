@@ -63,14 +63,22 @@ void Ywax::resetPll() {
 }
 
 bool Ywax::updatePll(cplex sample) {
-    cplex ref_signal = static_cast<cplex>(
-        std::exp(1i * static_cast<double>(phaseEstimate)));
+    cplex ref_signal = static_cast<cplex>(std::exp(1i * phaseEstimate));
     phaseError = std::arg(sample * std::conj(ref_signal));
     phaseEstimate += PLL_ALPHA * phaseError;
     freqEstimate += PLL_BETA * phaseError;
 
     phaseEstimate += freqEstimate; // Forward phase for next cycle
 
+    while (phaseEstimate > M_PI) {
+        // Restricting phase to [-pi,+pi] range
+        phaseEstimate -= 2*M_PI;
+    }
+    while (phaseEstimate < -M_PI) {
+        phaseEstimate += 2*M_PI;
+    }
+
+    // Updating running average of phase error
     phaseErrorAverage = phaseError * phaseRunningAverageScaling
             + phaseErrorAverage * (1. - phaseRunningAverageScaling);
     return true;
@@ -100,7 +108,7 @@ bool Ywax::getRevPerSecond(double &rps) {
     if (!getPitch(pitch)) {
         return false;
     }
-    rps = m_rpmNominal * pitch / 60.0f;
+    rps = m_rpmNominal * pitch / 60.0;
     return true;
 }
 
