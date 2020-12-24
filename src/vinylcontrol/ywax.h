@@ -134,11 +134,13 @@ private:
 
     static constexpr double kMinSignal = 0.001; // Minimum squared norm required for input signal (normalized in [0-1] range)
     static constexpr double PLL_ALPHA = 0.025;
-    static constexpr double PLL_BETA = 0.5*PLL_ALPHA*PLL_ALPHA;
+    static constexpr double PLL_BETA = 0.5*PLL_ALPHA;
     static constexpr double PLL_PHASE_ERROR_THRES = M_PI / 36; // 5 degree
     static constexpr uint16_t phaseErrorAverageSteps = 100;
     static constexpr double phaseRunningAverageScaling = 1. / (phaseErrorAverageSteps + 1);
     static constexpr double levelDetectionWindow = 10.0; // Averaging window, counted in tone cycles. For input level detection
+    static constexpr uint16_t pitchAverageSteps = 1000;
+    static constexpr double pitchAverageScaling = 1. / (pitchAverageSteps + 1);
 
     /**
      * Settings defined in constructor
@@ -156,6 +158,7 @@ private:
     double phaseEstimate;
     double freqEstimate; // in radians per sample, not Hz
     double sampleNormSquaredAverage;
+    double pitchAverage;
 
     bool processSample(cplex sample);
     void resetPll();

@@ -9,7 +9,8 @@ Ywax::Ywax(VinylType vinylType, int sampleRate, double rpmNominal) :
   phaseErrorAverage(M_PI),
   phaseEstimate(0.0),
   freqEstimate(0.0),
-  sampleNormSquaredAverage(0.0){
+  sampleNormSquaredAverage(0.0),
+  pitchAverage(0.0) {
     m_vinylSettings = allVinylSettings.at(vinylType);
     levelDetectionScaling = 1. / (levelDetectionWindow * sampleRate / m_vinylSettings.toneFreq + 1);
 }
@@ -60,14 +61,25 @@ void Ywax::resetPll() {
     phaseErrorAverage = M_PI;
     phaseEstimate = 0.0;
     freqEstimate = 0.0;
+    pitchAverage = 0.0;
 }
 
 bool Ywax::updatePll(cplex sample) {
     cplex ref_signal = static_cast<cplex>(std::exp(1i * phaseEstimate));
     phaseError = std::arg(sample * std::conj(ref_signal));
-    phaseEstimate += PLL_ALPHA * phaseError;
-    freqEstimate += PLL_BETA * phaseError;
 
+    // Updating running average of phase error
+    phaseErrorAverage = phaseError * phaseRunningAverageScaling
+            + phaseErrorAverage * (1. - phaseRunningAverageScaling);
+
+    double alpha = 0.02;
+    if (std::fabs(pitchAverage) < 1.0) {
+        alpha = -0.03*std::fabs(pitchAverage) + 0.05;
+    }
+
+    double correction = alpha * phaseError;
+    phaseEstimate += correction;
+    freqEstimate += 0.5 * alpha * correction;
     phaseEstimate += freqEstimate; // Forward phase for next cycle
 
     while (phaseEstimate > M_PI) {
@@ -78,9 +90,12 @@ bool Ywax::updatePll(cplex sample) {
         phaseEstimate += 2*M_PI;
     }
 
-    // Updating running average of phase error
-    phaseErrorAverage = phaseError * phaseRunningAverageScaling
-            + phaseErrorAverage * (1. - phaseRunningAverageScaling);
+    double pitch;
+    if (getPitch(pitch)) {
+        pitchAverage = pitch * pitchAverageScaling
+                + pitchAverage * (1. - pitchAverageScaling);
+    }
+
     return true;
 }
 
